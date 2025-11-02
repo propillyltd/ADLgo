@@ -1,63 +1,154 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Wallet, Plus, History, CreditCard, Banknote } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { COLORS } from '@/lib/constants';
-import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { WalletTransaction, UserWallet, AsyncState } from '@/lib/types';
+import ErrorBoundary from '@/lib/errorBoundary';
 
 export default function WalletScreen() {
-  const router = useRouter();
-  const { profile } = useAuth();
-  const [balance, setBalance] = useState(0);
-  const [transactions, setTransactions] = useState([]);
+   const router = useRouter();
+   const { profile } = useAuth();
+   const [walletState, setWalletState] = useState<AsyncState<UserWallet>>({
+     data: null,
+     loading: true,
+     error: null,
+   });
+   const [transactionsState, setTransactionsState] = useState<AsyncState<WalletTransaction[]>>({
+     data: [],
+     loading: true,
+     error: null,
+   });
+   const [isActionLoading, setIsActionLoading] = useState(false);
 
   useEffect(() => {
     loadWalletData();
   }, []);
 
-  const loadWalletData = async () => {
-    if (!profile) return;
+  const loadWalletData = useCallback(async () => {
+    if (!profile) {
+      setWalletState({ data: null, loading: false, error: 'User not authenticated' });
+      setTransactionsState({ data: [], loading: false, error: 'User not authenticated' });
+      return;
+    }
 
     try {
+      setWalletState(prev => ({ ...prev, loading: true, error: null }));
+      setTransactionsState(prev => ({ ...prev, loading: true, error: null }));
+
       // Load wallet balance
-      const { data: wallet } = await supabase
+      const { data: wallet, error: walletError } = await supabase
         .from('user_wallets')
-        .select('balance')
+        .select('*')
         .eq('user_id', profile.id)
         .single();
 
+      if (walletError && walletError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        throw walletError;
+      }
+
       if (wallet) {
-        setBalance(wallet.balance);
+        setWalletState({ data: wallet, loading: false, error: null });
+      } else {
+        // Create wallet if it doesn't exist
+        const { data: newWallet, error: createError } = await supabase
+          .from('user_wallets')
+          .insert({ user_id: profile.id, balance: 0 })
+          .select()
+          .single();
+
+        if (createError) {
+          setWalletState({ data: null, loading: false, error: 'Failed to create wallet' });
+        } else {
+          setWalletState({ data: newWallet, loading: false, error: null });
+        }
       }
 
       // Load recent transactions
-      const { data: txns } = await supabase
+      const { data: txns, error: txnsError } = await supabase
         .from('wallet_transactions')
         .select('*')
         .eq('user_id', profile.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (txns) {
-        setTransactions(txns);
+      if (txnsError) {
+        setTransactionsState({ data: [], loading: false, error: 'Failed to load transactions' });
+      } else {
+        setTransactionsState({ data: txns || [], loading: false, error: null });
       }
     } catch (error) {
       console.error('Error loading wallet data:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      setWalletState(prev => ({ ...prev, loading: false, error: errorMessage }));
+      setTransactionsState(prev => ({ ...prev, loading: false, error: errorMessage }));
     }
-  };
+  }, [profile]);
 
-  const handleAddMoney = () => {
-    // Navigate to add money screen (to be implemented)
-    Alert.alert('Add Money', 'Add money functionality will be implemented');
-  };
+  const handleAddMoney = useCallback(async () => {
+    try {
+      setIsActionLoading(true);
+      // Navigate to add money screen (to be implemented)
+      Alert.alert(
+        'Add Money',
+        'Add money functionality will be implemented soon. You can add funds to your wallet to pay for deliveries.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error handling add money:', error);
+      Alert.alert('Error', 'Failed to process add money request');
+    } finally {
+      setIsActionLoading(false);
+    }
+  }, []);
 
-  const handleViewHistory = () => {
-    router.push('/wallet/history');
-  };
+  const handleViewHistory = useCallback(async () => {
+    try {
+      setIsActionLoading(true);
+      await router.push('/wallet/history');
+    } catch (error) {
+      console.error('Error navigating to history:', error);
+      Alert.alert('Error', 'Failed to open transaction history');
+    } finally {
+      setIsActionLoading(false);
+    }
+  }, [router]);
+
+  // Show loading state
+  if (walletState.loading || transactionsState.loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading wallet...</Text>
+      </View>
+    );
+  }
+
+  // Show error state
+  if (walletState.error || transactionsState.error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>Unable to load wallet</Text>
+        <Text style={styles.errorText}>
+          {walletState.error || transactionsState.error}
+        </Text>
+        <TouchableOpacity
+          style={styles.errorButton}
+          onPress={loadWalletData}
+          accessibilityLabel="Retry loading wallet"
+          accessibilityHint="Attempts to reload wallet data"
+        >
+          <Text style={styles.errorButtonText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView style={styles.container}>
+    <ErrorBoundary>
+      <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Wallet</Text>
       </View>
@@ -68,13 +159,27 @@ export default function WalletScreen() {
           <Wallet size={32} color={COLORS.primary} />
           <Text style={styles.balanceLabel}>Available Balance</Text>
         </View>
-        <Text style={styles.balanceAmount}>₦{balance.toLocaleString()}</Text>
+        <Text style={styles.balanceAmount}>
+          ₦{walletState.data?.balance.toLocaleString() || '0'}
+        </Text>
         <View style={styles.balanceActions}>
-          <TouchableOpacity style={styles.actionButton} onPress={handleAddMoney}>
+          <TouchableOpacity
+            style={[styles.actionButton, isActionLoading && styles.disabledButton]}
+            onPress={handleAddMoney}
+            disabled={isActionLoading}
+            accessibilityLabel="Add money to wallet"
+            accessibilityHint="Opens add money interface"
+          >
             <Plus size={20} color={COLORS.text.primary} />
             <Text style={styles.actionButtonText}>Add Money</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={handleViewHistory}>
+          <TouchableOpacity
+            style={[styles.actionButton, isActionLoading && styles.disabledButton]}
+            onPress={handleViewHistory}
+            disabled={isActionLoading}
+            accessibilityLabel="View transaction history"
+            accessibilityHint="Opens detailed transaction history"
+          >
             <History size={20} color={COLORS.text.primary} />
             <Text style={styles.actionButtonText}>History</Text>
           </TouchableOpacity>
@@ -85,11 +190,21 @@ export default function WalletScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickActionCard}>
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            onPress={() => router.push('/payments')}
+            accessibilityLabel="Add payment card"
+            accessibilityHint="Navigate to add new payment card"
+          >
             <CreditCard size={24} color={COLORS.primary} />
             <Text style={styles.quickActionText}>Add Card</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionCard}>
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            onPress={() => router.push('/payments')}
+            accessibilityLabel="Add bank account"
+            accessibilityHint="Navigate to add bank account for transfers"
+          >
             <Banknote size={24} color={COLORS.primary} />
             <Text style={styles.quickActionText}>Bank Transfer</Text>
           </TouchableOpacity>
@@ -99,8 +214,8 @@ export default function WalletScreen() {
       {/* Recent Transactions */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Recent Transactions</Text>
-        {transactions.length > 0 ? (
-          transactions.map((txn: any) => (
+        {transactionsState.data && transactionsState.data.length > 0 ? (
+          transactionsState.data.map((txn: WalletTransaction) => (
             <View key={txn.id} style={styles.transactionItem}>
               <View style={styles.transactionInfo}>
                 <Text style={styles.transactionDescription}>{txn.description}</Text>
@@ -111,16 +226,24 @@ export default function WalletScreen() {
               <Text style={[
                 styles.transactionAmount,
                 txn.type === 'credit' ? styles.creditAmount : styles.debitAmount
-              ]}>
+              ]}
+              accessibilityLabel={`Transaction amount ${txn.type === 'credit' ? 'credit' : 'debit'} ${txn.amount} naira`}
+              >
                 {txn.type === 'credit' ? '+' : '-'}₦{txn.amount.toLocaleString()}
               </Text>
             </View>
           ))
         ) : (
-          <Text style={styles.noTransactions}>No transactions yet</Text>
+          <View style={styles.emptyState}>
+            <Text style={styles.noTransactions}>No transactions yet</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Your transaction history will appear here once you make payments or receive funds.
+            </Text>
+          </View>
         )}
       </View>
     </ScrollView>
+    </ErrorBoundary>
   );
 }
 
@@ -244,5 +367,60 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     fontSize: 14,
     paddingVertical: 24,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.text.secondary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 24,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.error,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 16,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  errorButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  errorButtonText: {
+    color: COLORS.text.primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    marginTop: 8,
   },
 });
