@@ -40,16 +40,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setLoading(false);
       }
+    }).catch((error) => {
+      console.error('Error getting session:', error);
+      setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       (async () => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await loadProfile(session.user.id);
-        } else {
-          setProfile(null);
+        try {
+          setSession(session);
+          setUser(session?.user ?? null);
+          if (session?.user) {
+            await loadProfile(session.user.id);
+          } else {
+            setProfile(null);
+            setLoading(false);
+          }
+        } catch (error) {
+          console.error('Error in auth state change:', error);
           setLoading(false);
         }
       })();

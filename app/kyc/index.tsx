@@ -6,11 +6,21 @@ import { COLORS } from '@/lib/constants';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
+interface KycDoc {
+  id: string;
+  user_id: string;
+  document_type: string;
+  document_number: string;
+  document_url: string;
+  verification_status: string;
+  created_at: string;
+}
+
 export default function KYCVerificationScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const [kycStatus, setKycStatus] = useState('not_started');
-  const [documents, setDocuments] = useState([]);
+  const [documents, setDocuments] = useState<KycDoc[]>([]);
   const [isPartner, setIsPartner] = useState(false);
 
   useEffect(() => {
@@ -22,13 +32,15 @@ export default function KYCVerificationScreen() {
 
     try {
       // Load KYC status
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('kyc_status, role')
         .eq('id', profile.id)
-        .single();
+        .maybeSingle();
 
-      if (profileData) {
+      if (profileError) {
+        console.error('Error loading profile:', profileError);
+      } else if (profileData) {
         setKycStatus(profileData.kyc_status || 'not_started');
         setIsPartner(profileData.role === 'partner' || profileData.role === 'both');
       }
@@ -229,11 +241,11 @@ export default function KYCVerificationScreen() {
                   <Text style={styles.documentTitle}>{doc.title}</Text>
                   <Text style={styles.documentDescription}>{doc.description}</Text>
                 </View>
-                {existingDoc && getStatusIcon(existingDoc.status)}
+                {existingDoc && getStatusIcon(existingDoc.verification_status)}
               </View>
               {existingDoc && (
-                <Text style={[styles.documentStatus, { color: getStatusColor(existingDoc.status) }]}>
-                  Status: {existingDoc.status.replace('_', ' ').toUpperCase()}
+                <Text style={[styles.documentStatus, { color: getStatusColor(existingDoc.verification_status) }]}>
+                  Status: {existingDoc.verification_status.replace('_', ' ').toUpperCase()}
                 </Text>
               )}
             </TouchableOpacity>

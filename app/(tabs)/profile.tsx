@@ -4,18 +4,7 @@ import { useRouter } from 'expo-router';
 import { User, Phone, Mail, LogOut, CreditCard, Bell, Shield, HelpCircle } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { COLORS } from '@/lib/constants';
-
-// TypeScript interfaces
-interface Profile {
-  id: string;
-  full_name: string | null;
-  email: string;
-  phone: string | null;
-  avatar_url?: string;
-  role: 'customer' | 'partner' | 'both' | 'admin';
-  kyc_status?: string;
-  verification_level?: string;
-}
+import type { Profile } from '@/lib/types';
 
 interface MenuItemProps {
   icon: React.ComponentType<any>;

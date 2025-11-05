@@ -43,9 +43,9 @@ export default function WalletScreen() {
         .from('user_wallets')
         .select('*')
         .eq('user_id', profile.id)
-        .single();
+        .maybeSingle();
 
-      if (walletError && walletError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (walletError) {
         throw walletError;
       }
 
@@ -55,11 +55,11 @@ export default function WalletScreen() {
         // Create wallet if it doesn't exist
         const { data: newWallet, error: createError } = await supabase
           .from('user_wallets')
-          .insert({ user_id: profile.id, balance: 0 })
+          .insert({ user_id: profile.id, balance: 0, currency: 'NGN' })
           .select()
-          .single();
+          .maybeSingle();
 
-        if (createError) {
+        if (createError || !newWallet) {
           setWalletState({ data: null, loading: false, error: 'Failed to create wallet' });
         } else {
           setWalletState({ data: newWallet, loading: false, error: null });

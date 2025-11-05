@@ -44,19 +44,24 @@ export default function HomeScreen() {
     if (!profile) return;
 
     try {
-      const { data: wallet } = await supabase
+      const { data: wallet, error: walletError } = await supabase
         .from('user_wallets')
         .select('balance')
         .eq('user_id', profile.id)
-        .single();
+        .maybeSingle();
+
+      if (walletError) {
+        console.error('Error fetching wallet:', walletError);
+        setWalletBalance(0);
+        return;
+      }
 
       if (wallet) {
         setWalletBalance(wallet.balance);
       } else {
-        // Create wallet if it doesn't exist
         const { error } = await supabase
           .from('user_wallets')
-          .insert({ user_id: profile.id, balance: 0 });
+          .insert({ user_id: profile.id, balance: 0, currency: 'NGN' });
 
         if (error) console.error('Error creating wallet:', error);
         setWalletBalance(0);

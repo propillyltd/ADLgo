@@ -71,9 +71,10 @@ export default function CreateDeliveryScreen() {
           estimated_delivery_time: estimatedDelivery.toISOString(),
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error('Failed to create order');
 
       await supabase.from('order_tracking').insert({
         order_id: data.id,

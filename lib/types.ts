@@ -4,9 +4,9 @@ export interface Profile {
   id: string;
   full_name: string | null;
   email: string;
-  phone?: string;
-  avatar_url?: string;
-  role: 'customer' | 'partner' | 'both' | 'admin';
+  phone: string | null;
+  avatar_url: string | null;
+  role: 'customer' | 'partner' | 'both' | 'admin' | null;
   kyc_status?: string;
   verification_level?: string;
   created_at?: string;

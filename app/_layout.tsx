@@ -12,13 +12,17 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
+    try {
+      const inAuthGroup = segments[0] === '(auth)';
+      const inTabsGroup = segments[0] === '(tabs)';
 
-    if (!user && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      router.replace('/(tabs)');
+      if (!user && !inAuthGroup) {
+        router.replace('/(auth)/login');
+      } else if (user && inAuthGroup) {
+        router.replace('/(tabs)');
+      }
+    } catch (error) {
+      console.error('Error in navigation effect:', error);
     }
   }, [user, loading, segments]);
 
