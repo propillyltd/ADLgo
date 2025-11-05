@@ -8,6 +8,10 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "extra": {
+      "supabaseUrl": "https://wiwqioelvzqpmrgeymky.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpd3Fpb2VsdnpxcG1yZ2V5bWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyODM4ODIsImV4cCI6MjA3Nzg1OTg4Mn0.wabQ-KY6xcF3KpS4eyIhd8fZwWvnUfNO2oPVJcYwG3M"
+    },
     "ios": {
       "supportsTablet": true
     },

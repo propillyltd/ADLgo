@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   registerButtonText: {
-    color: COLORS.text.primary,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
