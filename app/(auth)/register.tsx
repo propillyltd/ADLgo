@@ -64,7 +64,7 @@ export default function RegisterScreen() {
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join QuickDeliver today</Text>
+          <Text style={styles.subtitle}>Join ADLgo today</Text>
         </View>
 
         <View style={styles.form}>
