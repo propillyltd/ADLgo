@@ -16,6 +16,8 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
+    console.log('Register button pressed!', { fullName, email, phone, role: selectedRole });
+
     if (!fullName || !email || !phone || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -33,11 +35,14 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
+      console.log('Attempting sign up...');
       const { error } = await signUp(email, password, {
         full_name: fullName,
         phone,
         role: selectedRole,
       });
+
+      console.log('Sign up result:', error ? 'Error' : 'Success', error);
 
       if (error) {
         Alert.alert('Registration Failed', error.message);
@@ -47,6 +52,7 @@ export default function RegisterScreen() {
         ]);
       }
     } catch (error: any) {
+      console.error('Registration error:', error);
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);

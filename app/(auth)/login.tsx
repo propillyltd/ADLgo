@@ -12,6 +12,8 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    console.log('Login button pressed!', { email, password: '***' });
+
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -19,14 +21,19 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
+      console.log('Attempting sign in...');
       const { error } = await signIn(email, password);
+
+      console.log('Sign in result:', error ? 'Error' : 'Success', error);
 
       if (error) {
         Alert.alert('Login Failed', error.message);
       } else {
+        console.log('Login successful, navigating to tabs');
         router.replace('/(tabs)');
       }
     } catch (error: any) {
+      console.error('Login error:', error);
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
